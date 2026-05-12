@@ -10,27 +10,27 @@ from shapely.geometry import Polygon
 
 def rotated_rect(x_center, y_center, width, height, angle_degrees):
     """
-    生成旋转矩形的四个顶点坐标
-    :param x_center: 中心点x坐标
-    :param y_center: 中心点y坐标
-    :param width: 矩形宽度
-    :param height: 矩形高度
-    :param angle_degrees: 旋转角度（度数）
-    :return: 旋转后的四个顶点坐标列表
+    Generates the four vertex coordinates of a rotated rectangle.
+    :param x_center: X-coordinate of the center point.
+    :param y_center: Y-coordinate of the center point.
+    :param width: Rectangle width.
+    :param height: Rectangle height.
+    :param angle_degrees: Rotation angle (in degrees).
+    :return: List of the four vertex coordinates after rotation.
     """
     angle_radians = np.radians(angle_degrees)
     cos_theta = np.cos(angle_radians)
     sin_theta = np.sin(angle_radians)
 
-    # 定义未旋转时的四个顶点相对坐标
+    # Define the relative coordinates of the four vertices before rotation
     corners = np.array([
-        [width / 2, height / 2],   # 右上
-        [-width / 2, height / 2],  # 左上
-        [-width / 2, -height / 2], # 左下
-        [width / 2, -height / 2]   # 右下
+        [width / 2, height / 2],   # Top-right
+        [-width / 2, height / 2],  # Top-left
+        [-width / 2, -height / 2], # Bottom-left
+        [width / 2, -height / 2]   # Bottom-right
     ])
 
-    # 旋转并平移顶点
+    # Rotate and translate the vertices
     rotated_corners = []
     for x, y in corners:
         x_rot = x * cos_theta - y * sin_theta
@@ -44,52 +44,48 @@ def rotated_rect(x_center, y_center, width, height, angle_degrees):
 
 def getIOU(true_param, pred_param, th=36, tw=36):
     """
-    计算旋转矩形的交并比（IOU）
-    :param true_param: 真实框参数 [x, y, scale, rotate]
-    :param pred_param: 预测框参数 [x, y, scale, rotate]
-    :param th: 模板高度（用于计算实际尺寸）
-    :param tw: 模板宽度（用于计算实际尺寸）
-    :return: IOU值
+    Calculates the Intersection over Union (IoU) of rotated rectangles.
+    :param true_param: Ground truth box parameters [x, y, scale, rotate]
+    :param pred_param: Predicted box parameters [x, y, scale, rotate]
+    :param th: Template height (used to calculate actual size)
+    :param tw: Template width (used to calculate actual size)
+    :return: IoU value
     """
     if len(pred_param) == 4:
-        # 只有一个缩放参数
+        # Only one scale parameter
         pred_param = [pred_param[0], pred_param[1], pred_param[2], pred_param[2], pred_param[3]]
         true_param = [true_param[0], true_param[1], true_param[2], true_param[2], true_param[3]] 
     elif len(pred_param) == 3:
-         # 没有缩放参数
+         # No scale parameter
         pred_param = [pred_param[0], pred_param[1],  1,  1, pred_param[2]]
         true_param = [true_param[0], true_param[1],  1,  1, true_param[2]] 
     
     true_param = np.array(true_param)
     pred_param = np.array(pred_param)
     
-    # print(f"true_param: {true_param}")
-    # print(f"pred_param: {pred_param}")
-    # print(th, tw)
-    
-    # 解析参数
+    # Parse parameters
     true_x, true_y, true_sX, true_sY, true_r = true_param
     pred_x, pred_y, pred_sX, pred_sY, pred_r = pred_param
 
-    # 计算实际宽高（假设scale为整体缩放因子）
+    # Calculate actual width and height (assuming scale is a global scaling factor)
     true_width = true_sX * tw
     true_height = true_sY * th
     pred_width = pred_sX * tw
     pred_height = pred_sY * th
 
-    # 生成旋转矩形顶点
+    # Generate rotated rectangle vertices
     true_poly = rotated_rect(true_x, true_y, true_width, true_height, -true_r)
     pred_poly = rotated_rect(pred_x, pred_y, pred_width, pred_height, -pred_r)
 
-    # 创建多边形对象
+    # Create polygon objects
     poly1 = Polygon(true_poly)
     poly2 = Polygon(pred_poly)
 
-    # 检查多边形有效性
+    # Check polygon validity
     if not poly1.is_valid or not poly2.is_valid:
         return 0.0
 
-    # 计算交集和并集面积
+    # Calculate intersection and union areas
     intersection = poly1.intersection(poly2).area
     union = poly1.area + poly2.area - intersection
 
@@ -98,45 +94,45 @@ def getIOU(true_param, pred_param, th=36, tw=36):
 
 def get_center(center, points, threshold=15):
     """
-    基于固定阈值去除离群点的均值计算
+    Mean calculation after removing outliers based on a fixed threshold.
     
-    参数：
-    center : 中心点坐标，形状为(2,)的数组
-    points : 原始点集，形状为(n, 2)的数组
-    threshold : 离群点判定阈值（欧氏距离），默认为15
+    Args:
+    center : Center point coordinates, array of shape (2,)
+    points : Original point set, array of shape (n, 2)
+    threshold : Outlier judgment threshold (Euclidean distance), defaults to 15
     
-    返回：
-    mean : 去除离群点后的均值，形状为(2,)的数组
+    Returns:
+    mean : Mean after removing outliers, array of shape (2,)
     """
     if len(points) == 0:
         return center
     
-    # 计算所有点到中心点的欧氏距离
+    # Calculate the Euclidean distance from all points to the center point
     dx = points[:, 0] - center[0]
     dy = points[:, 1] - center[1]
     distances = np.sqrt(dx**2 + dy**2)
     
-    # 过滤离群点
+    # Filter outliers
     mask = distances <= threshold
     filtered_points = points[mask]
     
-    # 处理全为离群点的极端情况
+    # Handle the extreme case where all points are outliers
     if len(filtered_points) == 0:
-        return center  # 返回原始中心
+        return center  # Return original center
     
-    # 计算有效点的均值
+    # Calculate the mean of valid points
     return np.mean(filtered_points, axis=0)
 
 
-def draw_rotated_bbox(ax, param, color, th = 36, tw = 36, lineWidth=1):
+def draw_rotated_bbox(ax, param, color, th=36, tw=36, lineWidth=1):
     """
-    在指定Axes上画旋转矩形和中心线。
+    Draws a rotated rectangle and center line on the specified Axes.
     """
     if len(param) == 4:
-        # 只有一个缩放参数
+        # Only one scale parameter
         param = [param[0], param[1], param[2], param[2], param[3]]
     elif len(param) == 3:
-        # 没有缩放参数
+        # No scale parameter
         param = [param[0], param[1], 1, 1, param[2]]
     
     param = [float(p) for p in param]
@@ -144,16 +140,16 @@ def draw_rotated_bbox(ax, param, color, th = 36, tw = 36, lineWidth=1):
     x, y, scale_x, scale_y, rotate = param
     h, w = th * scale_y, tw * scale_x
 
-    # 创建矩形框
+    # Create a rectangle box
     rect = patches.Rectangle(
-        (x - w/2, y - h/2),  # 左下角坐标
-        w, h,                # 宽高
+        (x - w/2, y - h/2),  # Bottom-left coordinates
+        w, h,                # Width and height
         linewidth=lineWidth,
         edgecolor=color,
         facecolor='none'
     )
 
-    # 中心线
+    # Center line
     line = plt.Line2D(
         [x, x + w/2],
         [y, y],
@@ -162,7 +158,7 @@ def draw_rotated_bbox(ax, param, color, th = 36, tw = 36, lineWidth=1):
         linestyle='-'
     )
 
-    # 旋转变换
+    # Rotation transformation
     transform = Affine2D().rotate_deg_around(x, y, -rotate) + ax.transData
     rect.set_transform(transform)
     line.set_transform(transform)

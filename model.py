@@ -9,7 +9,7 @@ class convnext_v2_tiny(torch.nn.Module):
     def __init__(self):
         model = timm.create_model('convnextv2_tiny', pretrained=False)
         super().__init__()
-        self.stem = model.stem          # Stem层
+        self.stem = model.stem          # Stem layer
         self.stage1 = model.stages[0] 
         self.norm = nn.BatchNorm2d(96)
         
@@ -21,7 +21,7 @@ class convnext_v2_tiny(torch.nn.Module):
     
     def initialize(self):
         for m in self.modules():
-            # 仅初始化新增的BatchNorm层（跳过从预训练模型继承的层）
+            # Only initialize newly added BatchNorm layers (skip layers inherited from the pretrained model)
             if isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -38,7 +38,8 @@ class Model(nn.Module):
         self.conv1          =   nn.Conv2d(in_channels=self.c, out_channels=self.c*2, kernel_size=3, padding=1)
         self.conv2          =   nn.Conv2d(in_channels=self.c//2, out_channels=self.c, kernel_size=3, padding=1)
         self.upsample       =   nn.PixelShuffle(2)
-        # PixelShuffle: 将每个通道的 4 个像素重新排列到空间维度(无学习权重参数)。从而使通道数减少为原来的 1/4，同时空间维度增加为原来的 2 倍。
+        # PixelShuffle: Rearranges 4 pixels from each channel into the spatial dimensions (no learnable weight parameters). 
+        # This reduces the number of channels to 1/4 of the original, while increasing the spatial dimensions by a factor of 2.
         self.conv_score     =   nn.Sequential(
                                     nn.Conv2d(in_channels=self.c//4, out_channels=self.c//8, kernel_size=3, padding=1),
                                     nn.ReLU(),
@@ -79,19 +80,19 @@ class Model(nn.Module):
     def forward(self, origin, template):
         # search_area: [B, C, H, W] = [B, 3, 224, 224]
         # template: [B, C, H, W] = [B, 3, 16, 16]
-        # convnext 的第一个阶段（stage1）会对输入进行 4 倍下采样（shape = [B, self.c, H/4, W/4]）
+        # The first stage of ConvNeXt (stage1) downsamples the input by a factor of 4 (shape = [B, self.c, H/4, W/4])
 
         # W=H = 56, K = 4
         stage1_o = self.backbone_O(origin)       # (B, self.c, 56, 56)
         stage1_t = self.backbone_T(template)       # (B, self.c, 4, 4)
                         
-        # depthiwise + pointwise(backbone_T更新梯度)
+        # depthwise + pointwise (backbone_T updates gradients)
         output = []
         b, c, th, tw = stage1_t.shape
         for i in range(b):
             out = F.conv2d(
                     input=stage1_o[i].unsqueeze(0), # [self.c, 1, 56, 56]
-                    weight=stage1_t[i].view(c, 1, th, tw), # 显式重塑权重,[self.c, 1, 8, 8]
+                    weight=stage1_t[i].view(c, 1, th, tw), # explicitly reshape weights, [self.c, 1, 8, 8]
                     stride=1, padding=(th//2, tw//2),
                     groups=self.c
                     )

@@ -78,7 +78,7 @@ def val(model, val_loader, device, template_shape):
             pred_score, pred_sign, pred_cos, pred_scale_x, pred_scale_y = model(images, bboxes)
             *_, acc, diff = TemplatMacthLoss(pred_score, gt_score, pred_sign, pred_cos, pred_scale_x, pred_scale_y, gt_param)
             
-            # 计算准确率
+            # Update accuracy and angle difference
             acccuray   += acc.item()
             anglediff  += diff.item()
             
