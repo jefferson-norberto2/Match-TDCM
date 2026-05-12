@@ -5,3 +5,4 @@ pandas
 matplotlib
 shapely
 timm
+pycocotools
