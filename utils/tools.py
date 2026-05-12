@@ -1,5 +1,5 @@
 #coding=utf-8
-import cv2, torch, math, random
+import torch
 import numpy as np
 import torch.nn as nn
 from torchvision.utils import save_image

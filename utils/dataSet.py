@@ -1,15 +1,34 @@
 import torchvision.transforms as transforms
-import cv2, json, torch, random, csv, os
+import cv2, random
 from torch.utils.data import Dataset
 from PIL import Image
-import numpy as np
 from .get_imgR import rotate_crop
-import pandas as pd
     
+
+import random
+import cv2
+from PIL import Image
+import torchvision.transforms as transforms
+from torch.utils.data import Dataset
 
 class CoCo_Dataset(Dataset):
     def __init__(self, imgPath, fileName, tShape):
+        
+        # ColorJitter randomly changes brightness, contrast, saturation, and hue.
+        # This prevents the model from relying on color features, forcing it to learn shapes.
+        color_augmentation = transforms.ColorJitter(
+            brightness=0.3,
+            contrast=0.3,
+            saturation=0.4,
+            hue=0.15 # Alters the HSV hue channel (values between -0.5 and 0.5)
+        )
+        
+        # Optional: Randomly convert images to grayscale to further penalize color reliance
+        grayscale_augmentation = transforms.RandomGrayscale(p=0.2)
+
         self.transform_img = transforms.Compose([
+            color_augmentation,
+            grayscale_augmentation,
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize(
@@ -17,7 +36,10 @@ class CoCo_Dataset(Dataset):
                 std=[0.229, 0.224, 0.225]
             )            
         ])
+        
         self.transform_roi = transforms.Compose([
+            color_augmentation,
+            grayscale_augmentation,
             transforms.Resize(tShape),
             transforms.ToTensor(),
             transforms.Normalize(
@@ -25,6 +47,7 @@ class CoCo_Dataset(Dataset):
                 std=[0.229, 0.224, 0.225]
             )            
         ])
+        
         self.imgPath   = imgPath
         self.samples   = []
         self.tShape    = tShape
@@ -40,7 +63,6 @@ class CoCo_Dataset(Dataset):
     def __len__(self):
         return len(self.samples)
     
-    # 数据操作
     def __getitem__(self, idx):
         while True:
             name, bbox  = self.samples[idx]
@@ -50,7 +72,7 @@ class CoCo_Dataset(Dataset):
             x, y, w, h =  [round(v) for v in bbox]
             template   =  image[y:y+h, x:x+w]
              
-            # rotate_crop Image
+            # Assume rotate_crop is defined elsewhere in your module
             imgR, corners, angle = rotate_crop(image, bbox)
             if imgR is None:
                 idx = random.randint(0, len(self.samples)-1)
@@ -58,8 +80,9 @@ class CoCo_Dataset(Dataset):
 
             scale_y    =  h / self.tShape[0]
             scale_x    =  w / self.tShape[1]
-            center     = corners.mean(axis=0)  # 计算中心点
+            center     = corners.mean(axis=0)
 
+            # Transforms expect a PIL Image, which is already being handled here
             imgR       = self.transform_img(Image.fromarray(imgR))
             template   = self.transform_roi(Image.fromarray(template))
             

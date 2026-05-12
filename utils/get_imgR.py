@@ -17,7 +17,6 @@
 
 import numpy as np
 import cv2, copy, math
-import matplotlib.pyplot as plt
 
 
 def rotate_crop(image, bbox, max_attempts: int = 10):

@@ -1,7 +1,7 @@
 import warnings
 warnings.filterwarnings("ignore")
 
-import os, time
+import os
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 import argparse, torch, math
 from model import Model
@@ -11,18 +11,18 @@ import torch.optim as optim
 from utils import create_gt
 from utils import CoCo_Dataset
 from utils import reg_loss, soft_focal_loss, Sign_Loss
-
+from tqdm import tqdm
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Set detector', add_help=False)
     
-    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--lr', default=1e-3, type=float)
     parser.add_argument('--th', default=36, type=int)
     parser.add_argument('--tw', default=36, type=int)
     
-    parser.add_argument('--train_imgPath',  default='/workspace/zhouji/dataSets/MS-CoCo/train2017/')
-    parser.add_argument('--val_imgPath',    default='/workspace/zhouji/dataSets/MS-CoCo/val2017/')
+    parser.add_argument('--train_imgPath',  default='/run/media/jmn/Removable Disk/Datasets/MS-CoCo/train2017/')
+    parser.add_argument('--val_imgPath',    default='/run/media/jmn/Removable Disk/Datasets/MS-CoCo/val2017/')
     parser.add_argument('--train_file',     default='data/S2/train.csv')
     parser.add_argument('--val_file',       default='data/S2/val.csv')
     parser.add_argument('--snapshot',       default=None)
@@ -64,7 +64,7 @@ def val(model, val_loader, device, template_shape):
     model.eval()
     acccuray, anglediff = 0.0, 0.0
     with torch.no_grad():
-        for i, (_,images, bboxes, center_y, center_x, scale_y, scale_x, angle) in enumerate(val_loader):
+        for i, (_,images, bboxes, center_y, center_x, scale_y, scale_x, angle) in enumerate(tqdm(val_loader)):
             images = images.to(device, non_blocking=True).float()
             bboxes = bboxes.to(device, non_blocking=True).float()
             torch.cuda.empty_cache()
@@ -91,7 +91,7 @@ def train(model, train_loader, optimizer, device, template_shape):
     model.train()
     total_loss, scoreloss, signloss, cosloss, scaleloss_x, scaleloss_y = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     acccuray, anglediff = 0.0, 0.0
-    for i, (_,images, bboxes, center_y, center_x, scale_y, scale_x, angle) in enumerate(train_loader):
+    for i, (_,images, bboxes, center_y, center_x, scale_y, scale_x, angle) in enumerate(tqdm(train_loader)):
         images = images.to(device, non_blocking=True).float()
         bboxes = bboxes.to(device, non_blocking=True).float()
         torch.cuda.empty_cache()
@@ -142,9 +142,9 @@ def main(args):
     val_dataset = CoCo_Dataset(args.val_imgPath, args.val_file, template_shape)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
     
-    print(f"模板形状  :{template_shape}")
-    print(f"训练数据集: {len(train_dataset)}")
-    print(f"验证数据集: {len(val_dataset)}")
+    print(f"Template Shape: {template_shape}")
+    print(f"Train: {len(train_dataset)}")
+    print(f"Val: {len(val_dataset)}")
     
     for epoch in range(args.start_epoch, args.epochs):
         if (epoch + 1) % args.save_interval == 0:
