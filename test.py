@@ -15,7 +15,7 @@ from utils import getIOU
 
 device = torch.device('cpu')
 
-model = Model('dict/model.pth').to(device).eval()
+model = Model('dict/model_epoch_25.pth').to(device).eval()
 
 transform_img = transforms.Compose([
             transforms.ToTensor(),

@@ -19,12 +19,12 @@ class CoCo_Dataset(Dataset):
         color_augmentation = transforms.ColorJitter(
             brightness=0.3,
             contrast=0.3,
-            saturation=0.4,
-            hue=0.15 # Alters the HSV hue channel (values between -0.5 and 0.5)
+            saturation=0.8,
+            hue=0.5
         )
         
         # Optional: Randomly convert images to grayscale to further penalize color reliance
-        grayscale_augmentation = transforms.RandomGrayscale(p=0.2)
+        grayscale_augmentation = transforms.RandomGrayscale(p=0.5)
 
         self.transform_img = transforms.Compose([
             color_augmentation,

@@ -11,7 +11,7 @@ from torchvision.utils import save_image
 
 def weight_init(module):
     for n, m in module.named_children():
-        # print('initialize: '+n)
+        # print('initialize: ' + n)
         if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
             nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
             if m.bias is not None:
@@ -35,49 +35,49 @@ def weight_init(module):
 
 def gaussian2D(shape, center, sigma, scale_x, scale_y, rotation=0):
     """
-    生成二维高斯热图
+    Generates a 2D Gaussian heatmap.
 
-    参数:
-        shape (tuple): 热图画布的尺寸 (高度, 宽度)
-        center (tuple): 高斯分布的中心坐标 (x, y)
-        sigma (float or torch.Tensor): 高斯分布的基础标准差（决定热力图的大小）
-        scale_x (float or torch.Tensor): x方向的缩放系数
-        scale_y (float or torch.Tensor): y方向的缩放系数
-        rotation (float or torch.Tensor): 旋转角度（度），正值表示逆时针旋转
+    Args:
+        shape (tuple): Heatmap canvas size (height, width)
+        center (tuple): Center coordinates of the Gaussian distribution (x, y)
+        sigma (float or torch.Tensor): Base standard deviation of the Gaussian distribution (determines the size of the heatmap)
+        scale_x (float or torch.Tensor): Scaling factor in the x direction
+        scale_y (float or torch.Tensor): Scaling factor in the y direction
+        rotation (float or torch.Tensor): Rotation angle (in degrees), positive values indicate counter-clockwise rotation
 
-    返回:
-        torch.Tensor: 二维高斯热图
+    Returns:
+        torch.Tensor: 2D Gaussian heatmap
     """
     height, width = shape
-    device = center.device  # 获取输入张量的设备
+    device = center.device  # Get the device of the input tensor
     
-    # 将旋转角度转换为张量（如果输入是float）
+    # Convert rotation angle to tensor (if input is float)
     if not isinstance(rotation, torch.Tensor):
         rotation = torch.tensor(rotation, device=device)
     
-    # 生成网格坐标
+    # Generate grid coordinates
     x = torch.arange(width, dtype=torch.float32, device=device)
     y = torch.arange(height, dtype=torch.float32, device=device)
-    xx, yy = torch.meshgrid(x, y, indexing='xy')  # 生成网格坐标 (H, W)
+    xx, yy = torch.meshgrid(x, y, indexing='xy')  # Generate grid coordinates (H, W)
 
-    # 平移到中心点
+    # Translate to the center point
     xx_centered = xx - center[1]
     yy_centered = yy - center[0]
 
-    # 转换为弧度并计算旋转矩阵元素
+    # Convert to radians and calculate rotation matrix elements
     theta = torch.deg2rad(-rotation)
     cos_theta = torch.cos(theta)
     sin_theta = torch.sin(theta)
 
-    # 应用旋转矩阵（等效于坐标旋转-θ角度）
+    # Apply rotation matrix (equivalent to coordinate rotation by -theta angle)
     xx_rot = xx_centered * cos_theta + yy_centered * sin_theta
     yy_rot = -xx_centered * sin_theta + yy_centered * cos_theta
 
-    # 计算各向异性的标准差（主轴: sigma*scale，次轴: sigma）
+    # Calculate anisotropic standard deviation (major axis: sigma*scale, minor axis: sigma)
     sigma_x = sigma * scale_x
     sigma_y = sigma * scale_y
 
-    # 计算高斯分布
+    # Calculate Gaussian distribution
     exponent = (xx_rot ** 2) / (2 * sigma_x ** 2) + (yy_rot ** 2) / (2 * sigma_y ** 2)
     gaussian = torch.exp(-exponent)
 
@@ -96,7 +96,10 @@ def create_gt(images, true_params, template_shape):
         cos  = np.cos(np.deg2rad(angle))
         scale_y, scale_x = true_params[i, 2:4]
         sigma = 3.2  # 16 / 4
-        HSx, HSy = (tw * scale_x) / min(th, tw), (th * scale_y) / min(th, tw)   # 热力图在两个方向上的缩放系数
+        
+        # Heatmap scaling factors in both directions
+        HSx, HSy = (tw * scale_x) / min(th, tw), (th * scale_y) / min(th, tw)   
+        
         heatmap = gaussian2D((h, w), true_params[i, 0:2], sigma, HSx, HSy, angle)
         gt_score.append(heatmap)
         H, W = heatmap.shape
@@ -119,7 +122,7 @@ def create_gt(images, true_params, template_shape):
 if __name__ == "__main__":
     heatmap = gaussian2D(
         shape=(196, 196),
-        center=torch.tensor([164.5, 82.8]),  # 亚像素中心
+        center=torch.tensor([164.5, 82.8]),  # Sub-pixel center
         sigma=4.0,
         scale_x=2,
         scale_y=1,
@@ -130,4 +133,3 @@ if __name__ == "__main__":
     gt_y, gt_x = torch.nonzero(heatmap == heatmap.max())[0]
     print("gt_y: ", gt_y)  # 33
     print("gt_x: ", gt_x)  # 64
-    

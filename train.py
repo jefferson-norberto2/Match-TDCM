@@ -16,13 +16,13 @@ from tqdm import tqdm
 def get_args_parser():
     parser = argparse.ArgumentParser('Set detector', add_help=False)
     
-    parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--lr', default=1e-3, type=float)
     parser.add_argument('--th', default=36, type=int)
     parser.add_argument('--tw', default=36, type=int)
     
-    parser.add_argument('--train_imgPath',  default='/run/media/jmn/Removable Disk/Datasets/MS-CoCo/train2017/')
-    parser.add_argument('--val_imgPath',    default='/run/media/jmn/Removable Disk/Datasets/MS-CoCo/val2017/')
+    parser.add_argument('--train_imgPath',  default='/home/CIN/jmn/Datasets/MS-CoCo/train2017/')
+    parser.add_argument('--val_imgPath',    default='/home/CIN/jmn/Datasets/MS-CoCo/val2017/')
     parser.add_argument('--train_file',     default='data/S2/train.csv')
     parser.add_argument('--val_file',       default='data/S2/val.csv')
     parser.add_argument('--snapshot',       default=None)
@@ -78,7 +78,7 @@ def val(model, val_loader, device, template_shape):
             pred_score, pred_sign, pred_cos, pred_scale_x, pred_scale_y = model(images, bboxes)
             *_, acc, diff = TemplatMacthLoss(pred_score, gt_score, pred_sign, pred_cos, pred_scale_x, pred_scale_y, gt_param)
             
-            # 计算准确率
+            # Update accuracy and angle difference
             acccuray   += acc.item()
             anglediff  += diff.item()
             
